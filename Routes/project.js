@@ -25,21 +25,29 @@ router.get("/:id/alluser", (req, res) => {
 });
 
 //adding a intern on a project
-router.post("/:id/addintern", async (req, res) => {
+router.post("/:id/:project/addintern", async (req, res) => {
   try {
     const email = req.body.email;
+    const user = await User.findById(req.params.id);
 
-    const user = await User.findOne({ email: email });
-    const project = await Project.findById(req.params.id);
-    if (!project.user.includes(user._id)) {
-      await project.updateOne({ $push: { user: user._id } });
-      await user.updateOne({ $push: { task: req.params.id } });
-      res.status(200).json("user added to project");
+    if (user.isAdmin) {
+      const intern = await User.findOne({ email: email });
+      const project = await Project.findById(req.params.project);
+
+      if (project.createdBy == user._id && !project.user.includes(intern._id)) {
+        await project.updateOne({ $push: { user: intern._id } });
+        await intern.updateOne({ $push: { task: project._id } });
+        await project.save();
+        await intern.save();
+        res.status(200).json("user added to project");
+      } else {
+        res.status(403).json("user is already added");
+      }
     } else {
-      res.status(403).json("user is already added");
+      res.status(404).send("not allowed");
     }
-  } catch {
-    res.status(400);
+  } catch (err) {
+    res.status(400).send(err);
   }
 });
 

@@ -16,7 +16,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    isAdmin: Boolean,
+    isAdmin: {
+      type: Number,
+      default: 0,
+    },
     task: {
       type: Array,
       default: [],

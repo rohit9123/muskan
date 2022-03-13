@@ -4,9 +4,10 @@ const Project = require("../model/Project");
 //getting a profile of user
 router.get("/:id", async (req, res) => {
   try {
-    const user = User.findById(req.params.id);
-    const [password, ...all] = user;
-    res.status(200).send(all);
+    const user = await User.findById(req.params.id);
+
+    const { email, task, createTask, ...all } = user;
+    res.status(200).send({ email, task, createTask });
   } catch (err) {
     res.status(400).send("enternal error");
   }
@@ -14,59 +15,59 @@ router.get("/:id", async (req, res) => {
 //getting all project
 router.get("/:id/allproject", async (req, res) => {
   try {
-    const user = User.findById(req.params.id);
-    const project = await Promise.all(
-      user.task.map((t) => {
-        return Project.findById(t);
-      })
-    );
-    let projectList = [];
-    project.forEach((t) => {
-      const { _id, name, percentage, ...all } = t;
-      projectList.push({ _id, name, percentage });
-    });
-    res.status(200).send(projectList);
+    const user = await User.findById(req.params.id);
+    if (user.admin === false) {
+      const project = await Promise.all(
+        user.task.map(async (t) => {
+          const data = await Project.findById(t);
+          console.log(data);
+        })
+      );
+      let projectList = [];
+      project.forEach((t) => {
+        const { _id, name, percantage, ...all } = t;
+        projectList.push({ _id, name, percentage });
+      });
+      res.status(200).send(projectList);
+    } else {
+      console.log("here");
+      const project = await Promise.all(
+        user.createTask.map(async (c) => {
+          return await Project.findById(c);
+        })
+      );
+      console.log(project);
+      res.status(200).send(project);
+    }
   } catch {
     res.status(400);
   }
 });
-//geting all created task
-router.get("/:id/alltask", async (req, res) => {
-  try {
-    const user = User.findById(req.params.id);
-    if (user.isAdmin) {
-      const project = Promise.all(
-        user.createTask.map((c) => {
-          return Project.findById(c);
-        })
-      );
-
-      res.status(200).send(project);
-    } else {
-      res.status(400).send("not allowed");
-    }
-  } catch {
-    res.send(404).send("internal error");
-  }
-});
 
 //creating a project
-router.get("/:id/addproject", async (req, res) => {
+router.post("/:id/addproject", async (req, res) => {
+  console.log(req.params.id);
   try {
     const user = await User.findById(req.params.id);
-    if (user.isAdmin) {
+
+    const { isAdmin, ...all } = user;
+    if (isAdmin) {
       const name = req.body.name;
+      console.log(name);
       const project = await new Project({
         name: name,
+        createdBy: req.params.id,
       });
-      await project.save();
-      user.updateOne({ $push: { createTask: project._id } });
+      console.log(name);
+      const newproject = await project.save();
+      console.log("project saved");
+      await user.updateOne({ $push: { createTask: project._id } });
       res.status(200).send(project);
     } else {
       res.status(400).send("you cannot create a project");
     }
-  } catch {
-    res.send(404);
+  } catch (err) {
+    res.status(404).send(err);
   }
 });
 
